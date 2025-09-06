@@ -1,0 +1,93 @@
+import java.util.*;
+
+enum ActionType {
+    MOVEMENT, INTERACTION, INVENTORY, COMBAT, DIALOGUE,
+    CRAFTING, TRADING, SYSTEM, UNKNOWN
+}
+
+class Command {
+    ActionType action;
+    List<Token> tokens;
+    String originalInput;
+
+    Command(ActionType action, List<Token> tokens, String originalInput) {
+        this.action = action;
+        this.tokens = tokens;
+        this.originalInput = originalInput;
+    }
+
+    public String toString() {
+        return String.format("Command{action=%s, tokens=%s}", action, tokens);
+    }
+}
+
+class CommandParser {
+    public static Command parse(List<Token> tokens, String originalInput) {
+        if (tokens.isEmpty()) {
+            return new Command(ActionType.UNKNOWN, tokens, originalInput);
+        }
+
+        Token firstToken = tokens.get(0);
+
+        switch (firstToken.type) {
+            case MOVE_VERB:
+            case JUMP:
+            case CLIMB:
+            case SWIM:
+            case CRAWL:
+            case DIRECTION:
+                return new Command(ActionType.MOVEMENT, tokens, originalInput);
+
+            case LOOK:
+            case OPEN:
+            case CLOSE:
+            case PUSH:
+            case PULL:
+            case USE:
+                return new Command(ActionType.INTERACTION, tokens, originalInput);
+
+            case PICK:
+            case DROP:
+            case EQUIP:
+            case UNEQUIP:
+            case INSPECT:
+            case INVENTORY:
+                return new Command(ActionType.INVENTORY, tokens, originalInput);
+
+            case ATTACK:
+            case DEFEND:
+            case BLOCK:
+            case DODGE:
+            case PARRY:
+            case CHARGE:
+            case CAST:
+            case SPECIAL:
+                return new Command(ActionType.COMBAT, tokens, originalInput);
+
+            case TALK:
+            case ASK:
+            case GREET:
+            case TRADE:
+                return new Command(ActionType.DIALOGUE, tokens, originalInput);
+
+            case CRAFT:
+            case COOK:
+            case BREW:
+                return new Command(ActionType.CRAFTING, tokens, originalInput);
+
+            case BUY:
+            case SELL:
+                return new Command(ActionType.TRADING, tokens, originalInput);
+
+            case HELP:
+            case SAVE:
+            case LOAD:
+            case QUIT:
+            case EXIT:
+                return new Command(ActionType.SYSTEM, tokens, originalInput);
+
+            default:
+                return new Command(ActionType.UNKNOWN, tokens, originalInput);
+        }
+    }
+}
