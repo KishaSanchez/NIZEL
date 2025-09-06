@@ -1,0 +1,306 @@
+import java.util.*;
+import java.util.regex.*;
+
+public class Tokenizer {
+    private final String input;
+    private int position;
+    private int line;
+    private int column;
+    private final List<Token> tokens;
+    private final StringBuilder currentLexeme;
+
+    // Regular expressions for different token types
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("^\\d+$");
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{2,19}$");
+
+    // Keyword mappings
+    private static final Map<String, TokenType> KEYWORDS = createKeywordMap();
+
+    private static Map<String, TokenType> createKeywordMap() {
+        Map<String, TokenType> map = new HashMap<>();
+
+        // Movement verbs
+        map.put("move", TokenType.MOVE_VERB);
+        map.put("go", TokenType.MOVE_VERB);
+        map.put("walk", TokenType.MOVE_VERB);
+        map.put("run", TokenType.MOVE_VERB);
+        map.put("sprint", TokenType.MOVE_VERB);
+        map.put("jump", TokenType.JUMP);
+        map.put("climb", TokenType.CLIMB);
+        map.put("swim", TokenType.SWIM);
+        map.put("crawl", TokenType.CRAWL);
+
+        // Directions
+        map.put("north", TokenType.DIRECTION);
+        map.put("south", TokenType.DIRECTION);
+        map.put("east", TokenType.DIRECTION);
+        map.put("west", TokenType.DIRECTION);
+        map.put("up", TokenType.UP);
+        map.put("down", TokenType.DOWN);
+        map.put("left", TokenType.LEFT);
+        map.put("right", TokenType.RIGHT);
+
+        // Interaction
+        map.put("look", TokenType.LOOK);
+        map.put("open", TokenType.OPEN);
+        map.put("close", TokenType.CLOSE);
+        map.put("push", TokenType.PUSH);
+        map.put("pull", TokenType.PULL);
+        map.put("use", TokenType.USE);
+
+        // Inventory
+        map.put("pick", TokenType.PICK);
+        map.put("drop", TokenType.DROP);
+        map.put("equip", TokenType.EQUIP);
+        map.put("unequip", TokenType.UNEQUIP);
+        map.put("inspect", TokenType.INSPECT);
+        map.put("inventory", TokenType.INVENTORY);
+        map.put("inv", TokenType.INVENTORY);
+
+        // Combat
+        map.put("attack", TokenType.ATTACK);
+        map.put("defend", TokenType.DEFEND);
+        map.put("block", TokenType.BLOCK);
+        map.put("dodge", TokenType.DODGE);
+        map.put("parry", TokenType.PARRY);
+        map.put("charge", TokenType.CHARGE);
+        map.put("cast", TokenType.CAST);
+        map.put("special", TokenType.SPECIAL);
+
+        // Dialogue
+        map.put("talk", TokenType.TALK);
+        map.put("ask", TokenType.ASK);
+        map.put("greet", TokenType.GREET);
+        map.put("trade", TokenType.TRADE);
+
+        // Crafting
+        map.put("craft", TokenType.CRAFT);
+        map.put("cook", TokenType.COOK);
+        map.put("brew", TokenType.BREW);
+
+        // Trading
+        map.put("buy", TokenType.BUY);
+        map.put("sell", TokenType.SELL);
+
+        // System
+        map.put("help", TokenType.HELP);
+        map.put("save", TokenType.SAVE);
+        map.put("load", TokenType.LOAD);
+        map.put("quit", TokenType.QUIT);
+        map.put("exit", TokenType.EXIT);
+
+        // Modifiers
+        map.put("around", TokenType.AROUND);
+        map.put("at", TokenType.AT);
+        map.put("on", TokenType.ON);
+        map.put("to", TokenType.TO);
+        map.put("about", TokenType.ABOUT);
+        map.put("with", TokenType.WITH);
+        map.put("from", TokenType.FROM);
+        map.put("and", TokenType.AND);
+
+        return map;
+    }
+
+    // Object/Item mappings
+    private static final Set<String> OBJECTS = new HashSet<>(Arrays.asList(
+            "ladder", "rope", "wall", "tree", "door", "chest", "lever"
+    ));
+
+    private static final Set<String> ITEMS = new HashSet<>(Arrays.asList(
+            "sword", "shield", "bow", "dagger", "armor", "potion", "key", "gold",
+            "map", "torch", "herb", "arrow", "book", "ring", "amulet"
+    ));
+
+    private static final Set<String> TARGETS = new HashSet<>(Arrays.asList(
+            "enemy", "monster", "goblin", "orc", "dragon", "boss", "bandit", "skeleton"
+    ));
+
+    private static final Set<String> CHARACTERS = new HashSet<>(Arrays.asList(
+            "npc", "merchant", "villager", "guard", "king", "ally", "queen", "wizard"
+    ));
+
+    private static final Set<String> TOPICS = new HashSet<>(Arrays.asList(
+            "quest", "rumors", "village", "treasure", "history", "magic", "dungeon"
+    ));
+
+    private static final Set<String> POTIONS = new HashSet<>(Arrays.asList(
+            "healing potion", "mana potion", "strength potion", "invisibility potion"
+    ));
+
+    private static final Set<String> SPELLS = new HashSet<>(Arrays.asList(
+            "fireball", "heal", "lightning", "shield", "ice blast", "summon", "teleport"
+    ));
+
+    private static final Set<String> SPECIAL_MOVES = new HashSet<>(Arrays.asList(
+            "power strike", "whirlwind", "backstab", "double shot", "flying kick"
+    ));
+
+    public Tokenizer(String input) {
+        this.input = input.toLowerCase().trim();
+        this.position = 0;
+        this.line = 1;
+        this.column = 1;
+        this.tokens = new ArrayList<>();
+        this.currentLexeme = new StringBuilder();
+    }
+
+    public List<Token> tokenize() throws TokenizerException {
+        tokens.clear();
+
+        while (position < input.length()) {
+            char currentChar = input.charAt(position);
+
+            if (Character.isWhitespace(currentChar)) {
+                handleWhitespace(currentChar);
+            } else if (Character.isLetter(currentChar)) {
+                readWord();
+            } else if (Character.isDigit(currentChar)) {
+                readNumber();
+            } else if (currentChar == '"') {
+                readQuotedString();
+            } else {
+                handleSymbol(currentChar);
+            }
+        }
+
+        tokens.add(new Token(TokenType.EOF, "", line, column));
+        return tokens;
+    }
+
+    private void readWord() throws TokenizerException {
+        int startLine = line;
+        int startColumn = column;
+
+        while (position < input.length() &&
+                (Character.isLetterOrDigit(input.charAt(position)) ||
+                        input.charAt(position) == '_' ||
+                        input.charAt(position) == '-')) {
+            currentLexeme.append(input.charAt(position));
+            position++;
+            column++;
+        }
+
+        String word = currentLexeme.toString();
+        currentLexeme.setLength(0);
+
+        // Check for multi-word tokens first
+        TokenType type = checkMultiWordTokens(word);
+        if (type != TokenType.UNKNOWN) {
+            tokens.add(new Token(type, word, startLine, startColumn));
+            return;
+        }
+
+        // Check single word tokens
+        if (KEYWORDS.containsKey(word)) {
+            tokens.add(new Token(KEYWORDS.get(word), word, startLine, startColumn));
+        } else if (OBJECTS.contains(word)) {
+            tokens.add(new Token(TokenType.OBJECT, word, startLine, startColumn));
+        } else if (ITEMS.contains(word)) {
+            tokens.add(new Token(TokenType.ITEM, word, startLine, startColumn));
+        } else if (TARGETS.contains(word)) {
+            tokens.add(new Token(TokenType.TARGET, word, startLine, startColumn));
+        } else if (CHARACTERS.contains(word)) {
+            tokens.add(new Token(TokenType.CHARACTER, word, startLine, startColumn));
+        } else if (TOPICS.contains(word)) {
+            tokens.add(new Token(TokenType.TOPIC, word, startLine, startColumn));
+        } else if (NUMBER_PATTERN.matcher(word).matches()) {
+            tokens.add(new Token(TokenType.NUMBER, word, startLine, startColumn));
+        } else if (USERNAME_PATTERN.matcher(word).matches()) {
+            tokens.add(new Token(TokenType.CHARACTER, word, startLine, startColumn));
+        } else {
+            throw new TokenizerException("Unknown word: " + word, startLine, startColumn);
+        }
+    }
+
+    private TokenType checkMultiWordTokens(String currentWord) {
+        // Check if current word could be part of a multi-word token
+        if (position < input.length() && !Character.isWhitespace(input.charAt(position))) {
+            return TokenType.UNKNOWN;
+        }
+
+        // Check for multi-word tokens by looking ahead
+        if (tokens.size() > 0) {
+            Token lastToken = tokens.get(tokens.size() - 1);
+
+            // Check for "pick up"
+            if (lastToken.type == TokenType.PICK && currentWord.equals("up")) {
+                tokens.remove(tokens.size() - 1);
+                return TokenType.PICK;
+            }
+
+            // Check for multi-word items/spells/etc.
+            String combined = lastToken.lexeme + " " + currentWord;
+
+            if (POTIONS.contains(combined)) return TokenType.POTION;
+            if (SPELLS.contains(combined)) return TokenType.SPELL;
+            if (SPECIAL_MOVES.contains(combined)) return TokenType.SPECIAL_MOVE;
+            if (OBJECTS.contains(combined)) return TokenType.OBJECT;
+            if (ITEMS.contains(combined)) return TokenType.ITEM;
+        }
+
+        return TokenType.UNKNOWN;
+    }
+
+    private void readNumber() {
+        int startLine = line;
+        int startColumn = column;
+
+        while (position < input.length() && Character.isDigit(input.charAt(position))) {
+            currentLexeme.append(input.charAt(position));
+            position++;
+            column++;
+        }
+
+        tokens.add(new Token(TokenType.NUMBER, currentLexeme.toString(), startLine, startColumn));
+        currentLexeme.setLength(0);
+    }
+
+    private void readQuotedString() throws TokenizerException {
+        int startLine = line;
+        int startColumn = column;
+        position++; // Skip opening quote
+        column++;
+
+        while (position < input.length() && input.charAt(position) != '"') {
+            currentLexeme.append(input.charAt(position));
+            position++;
+            column++;
+
+            if (position >= input.length()) {
+                throw new TokenizerException("Unterminated string literal", startLine, startColumn);
+            }
+        }
+
+        if (position < input.length()) {
+            position++; // Skip closing quote
+            column++;
+        }
+
+        tokens.add(new Token(TokenType.ITEM, currentLexeme.toString(), startLine, startColumn));
+        currentLexeme.setLength(0);
+    }
+
+    private void handleWhitespace(char c) {
+        if (c == '\n') {
+            line++;
+            column = 1;
+        } else {
+            column++;
+        }
+        position++;
+    }
+
+    private void handleSymbol(char c) {
+        tokens.add(new Token(TokenType.ERROR, String.valueOf(c), line, column));
+        position++;
+        column++;
+    }
+
+    public void printTokens() {
+        System.out.println("Tokens:");
+        for (Token token : tokens) {
+            System.out.println(token);
+        }
+    }
+}
