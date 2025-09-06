@@ -1,0 +1,25 @@
+public enum TokenType {
+    // Verbs and actions
+    MOVE_VERB, JUMP, CLIMB, SWIM, CRAWL, LOOK, OPEN, CLOSE, PUSH, PULL, USE,
+    PICK, DROP, EQUIP, UNEQUIP, INSPECT, INVENTORY, ATTACK, DEFEND, BLOCK, DODGE, PARRY,
+    CHARGE, CAST, SPECIAL, TALK, ASK, GREET, TRADE, CRAFT, COOK, BREW, BUY, SELL,
+    HELP, SAVE, LOAD, QUIT, EXIT,
+
+    // Directions
+    DIRECTION,
+
+    // Objects and items
+    OBJECT, ITEM, TARGET, CHARACTER, TOPIC, POTION, SPELL, SPECIAL_MOVE,
+
+    // Modifiers and prepositions
+    AROUND, AT, ON, TO, ABOUT, WITH, FROM,
+
+    // Numbers and quantities
+    NUMBER, STEPS,
+
+    // Special tokens
+    AND, UP, DOWN, LEFT, RIGHT,
+
+    // Structural
+    EOF, UNKNOWN, ERROR
+}
