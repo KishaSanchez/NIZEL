@@ -1,0 +1,101 @@
+import java.util.*;
+
+public class GameLoop {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Welcome to the Text Adventure Game!");
+        System.out.println("Type 'help' for available commands or 'quit' to exit.");
+
+        while (true) {
+            System.out.print("\n> ");
+            String input = scanner.nextLine().trim();
+
+            if (input.equalsIgnoreCase("quit") || input.equalsIgnoreCase("exit")) {
+                System.out.println("Goodbye!");
+                break;
+            }
+
+            if (input.isEmpty()) continue;
+
+            try {
+                Tokenizer tokenizer = new Tokenizer(input);
+                List<Token> tokens = tokenizer.tokenize();
+
+                Command cmd = CommandParser.parse(tokens, input);
+                handleCommand(cmd);
+
+            } catch (TokenizerException e) {
+                System.out.println("Error: " + e.getMessage());
+                System.out.println("Please try again with a valid command.");
+            }
+        }
+
+        scanner.close();
+    }
+
+    static void handleCommand(Command cmd) {
+        switch (cmd.action) {
+            case MOVEMENT:
+                System.out.println("Processing movement command: " + cmd.originalInput);
+                break;
+            case INTERACTION:
+                System.out.println("Processing interaction command: " + cmd.originalInput);
+                break;
+            case INVENTORY:
+                System.out.println("Processing inventory command: " + cmd.originalInput);
+                break;
+            case COMBAT:
+                System.out.println("Processing combat command: " + cmd.originalInput);
+                break;
+            case DIALOGUE:
+                System.out.println("Processing dialogue command: " + cmd.originalInput);
+                break;
+            case CRAFTING:
+                System.out.println("Processing crafting command: " + cmd.originalInput);
+                break;
+            case TRADING:
+                System.out.println("Processing trading command: " + cmd.originalInput);
+                break;
+            case SYSTEM:
+                handleSystemCommand(cmd);
+                break;
+            default:
+                System.out.println("Unknown command: " + cmd.originalInput);
+                System.out.println("Type 'help' for available commands.");
+        }
+    }
+
+    static void handleSystemCommand(Command cmd) {
+        if (cmd.tokens.isEmpty()) return;
+
+        Token firstToken = cmd.tokens.get(0);
+        switch (firstToken.type) {
+            case HELP:
+                displayHelp();
+                break;
+            case SAVE:
+                System.out.println("Game saved successfully.");
+                break;
+            case LOAD:
+                System.out.println("Game loaded successfully.");
+                break;
+            case QUIT:
+            case EXIT:
+                System.out.println("Use the quit/exit command to exit the game.");
+                break;
+        }
+    }
+
+    static void displayHelp() {
+        System.out.println("\n=== AVAILABLE COMMANDS ===");
+        System.out.println("MOVEMENT: move/go/walk/run/jump/climb/swim/crawl [direction] [steps]");
+        System.out.println("INTERACTION: look/open/close/push/pull/use [object]");
+        System.out.println("INVENTORY: pick up/drop/equip/unequip/inspect/inventory [item]");
+        System.out.println("COMBAT: attack/defend/block/dodge/parry/charge/cast/special [target]");
+        System.out.println("DIALOGUE: talk/ask/greet/trade [with character] [about topic]");
+        System.out.println("CRAFTING: craft/cook/brew [item] with [materials]");
+        System.out.println("TRADING: buy/sell [item] [from/to character]");
+        System.out.println("SYSTEM: help/save/load/quit/exit");
+        System.out.println("\nExamples: 'move north 5 steps', 'pick up sword', 'attack goblin'");
+    }
+}
